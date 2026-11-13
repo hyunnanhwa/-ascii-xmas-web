@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ASCII 크리스마스 트리</title>
+  <meta name="description" content="코드가 타이핑되는 동안 문자로 그려지는 크리스마스 트리 애니메이션">
+  <meta property="og:title" content="ASCII 크리스마스 트리">
+  <meta property="og:description" content="코드가 타이핑되는 동안 문자로 그려지는 크리스마스 트리 애니메이션">
+  <meta name="theme-color" content="#05070d">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,8 88,86 12,86' fill='%2357d68d'/%3E%3Ccircle cx='50' cy='10' r='8' fill='%23ffd166'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="scene" id="scene">
+      <canvas id="cv" aria-label="문자로 그려지는 크리스마스 트리 애니메이션"></canvas>
+      <div class="hud tl"><b>ASCII XMAS</b><i>×</i>NANA</div>
+      <div class="hud tr" id="clock">● t 0.00s</div>
+      <div class="hud bl" id="stats">rotation 0.0° · lights 0 · letters 0</div>
+    </div>
+    <div class="bar"><span class="file">christmas_tree.js</span><span class="state" id="state">● running · 60 fps</span></div>
+    <div class="code" id="code"></div>
+  </div>
+
+  <div class="controls">
+    <button id="btnRestart" type="button">다시 재생<kbd>R</kbd></button>
+    <button id="btnPause" type="button">일시정지<kbd>Space</kbd></button>
+    <button id="btnSpeed" type="button">속도 1×</button>
+  </div>
+
+  <!-- 아래 코드는 화면 하단 에디터에 타이핑되는 "연출용" 코드입니다.
+       하이라이트가 scene.phase("이름") 줄에 도달하는 순간 해당 단계 애니메이션이 시작됩니다. -->
+  <script type="text/plain" id="src">
+// christmas_tree.js — ascii renderer
+// 80 x 56 cells · monospace · 60 fps
+
+const COLS = 80, ROWS = 56;
+const RAMP = ".,:;-=+*xX#%@";
+const scene = new Scene(COLS, ROWS);
+
+// 1. night sky + snow that never stops
+for (let i = 0; i < 160; i++) {
+  scene.add(new Twinkle(rand(COLS), rand(34)));
+}
+scene.add(new Snow({ count: 260, layers: 3 }));
+scene.phase("sky");
+
+// 2. turntable floor (rings + spokes) — everything on it spins
+const stage = new Turntable({ rings: [31, 39, 47, 55], spokes: 16 });
+const camera = new Camera({ pitch: "slightly above", persp: 1 / 6 });
+scene.phase("ground");
+
+// 3. a 3D tree: dense inner foliage + 9000 glyph points on drooping branches
+const tree = stage.add(new PointTree({ height: 33, radius: 27, layers: 15 }));
+tree.fill({ core: ".:;~-^" });
+tree.glyphs({ dark: ".:-~^", mid: "vx*=o+%", bright: "W&#@%XM" });
+tree.lights({ density: 0.075, colors: [GOLD, AMBER, RED] });
+tree.grow({ from: "bottom", scramble: "01{}<>#%&" });
+scene.phase("tree");
+
+// 4. extra-thick tinsel: 5 strands, gold + white, wound bottom -> top
+const tinsel = spiral(tree, { turns: 3.2, strands: 5, from: "bottom" });
+scene.phase("tinsel");
+
+// 5. big round baubles — red and gold only, each twinkles in
+const COLORS = [RED, GOLD];
+tree.scatter(14).forEach((p, i) => {
+  tree.hang(new Bauble(p, COLORS[i % 2], { size: "XXL" }), { appear: "twinkle" });
+});
+scene.phase("baubles");
+
+// 6. a 3D five-pointed star, seated on the tip
+const star = tree.apex.add(new Star3D({ points: 5, bevel: true }));
+star.drop().then(() => star.rays({ count: 7 }));
+scene.phase("star");
+
+// 7. small 3D presents around the tree (ribbons, no bows)
+const gifts = [RED, GREEN, BLUE, GOLD, PINK, ORANGE].map(
+  (color) => stage.add(new Box3D({ color, ribbon: "cross", dist: 34 }))
+);
+stage.appear("sparkle");
+scene.phase("gifts");
+
+// 8. lights on, heavier snow
+tree.lightsOn();
+tinsel.lights({ every: 6, blink: 0.8 });
+scene.phase("lights");
+
+// 9. greeting
+scene.type("MERRY CHRISTMAS 2026", { y: 52 });
+scene.phase("message");
+
+// 10. one present pops open... surprise!
+const box = gifts.find((g) => g.facingCamera());
+box.lid.pop().then(() => box.release(new Frog()))
+  .then((frog) => frog.say("앙기모띠!!"));
+scene.phase("surprise");
+
+// spin the whole turntable forever
+loop((dt) => {
+  stage.rotation += 0.3 * dt;
+  scene.render(camera);
+});
+</script>
+  <script src="script.js"></script>
+</body>
+</html>
